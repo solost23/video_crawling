@@ -1,0 +1,8 @@
+connections:
+  mysql:
+    host: 127.0.0.1
+    user: root
+    password: "123"
+    port: 3306
+    db: video_server
+    charset: utf8mb4
