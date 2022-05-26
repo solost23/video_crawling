@@ -1,5 +1,7 @@
+import os.path
 import time
 import random
+import json
 
 import requests
 import uuid
@@ -25,6 +27,16 @@ class VideoCrawl:
         self.base_url = base_url
         self.mysql_client = mysql_client
 
+        # 从文件内解析出字典
+        self.exist_data_dict = self.load_file()
+
+    def load_file(self):
+        # 判断文件是否存在，如果不存在，则返回空字典，否则从文件中加载数据反序列化为字典
+        if not os.path.exists("./video_data.json"):
+            return {}
+        with open(file="./video_data.json", mode="r", encoding="utf8") as fp:
+            return json.loads(fp.read())
+
     def get_uuid(self):
         return uuid.uuid1()
 
@@ -35,6 +47,7 @@ class VideoCrawl:
         while True:
             i = i + 1
             url = self.base_url + str(i) + ".html"
+            # headers={'User-Agent': user_agent.UserAgent[random.randint(0, len(user_agent.UserAgent)) - 1]}
             page_text = requests.get(url, headers={'User-Agent': user_agent.UserAgent[random.randint(0, len(user_agent.UserAgent)) - 1]}).text
             # 解析内容,存入列表
             print("解析第%s页数据" % (i))
@@ -43,9 +56,13 @@ class VideoCrawl:
                 break
             video_detail_dict_list.append(data)
 
-        cursor = self.mysql_client.cursor()
         for video_detail_dict_list in video_detail_dict_list:
+            cursor = self.mysql_client.cursor()
             for video_detail_dict in video_detail_dict_list:
+                # 判断，如果数据存在，不写入
+                if video_detail_dict.get("video_detail_url") in self.exist_data_dict:
+                    print("数据%s已存在" % (video_detail_dict))
+                    continue
                 try:
                     cursor.execute(self.sql, (
                         # uuid
@@ -64,10 +81,19 @@ class VideoCrawl:
                         ))
                     self.mysql_client.commit()
                     print(video_detail_dict, "插入成功")
+                    # 插入成功后将数据存入字典
+                    self.exist_data_dict[video_detail_dict.get("video_detail_url")] = True
                 except Exception as e:
                     print(e)
                     self.mysql_client.rollback()
                     print(video_detail_dict, "插入失败")
+
+        self.write_save()
+
+    # 字典序列化并写入文件
+    def write_save(self):
+        with open(file="./video_data.json", mode="w", encoding="utf8") as fp:
+            fp.write(json.dumps(self.exist_data_dict))
 
     # 解析内容，并放入一个列表型的字典中
     def parse_content(self, page_text):
