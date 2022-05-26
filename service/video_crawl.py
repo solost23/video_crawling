@@ -1,9 +1,11 @@
 import time
+import random
 
 import requests
 import uuid
 
 from lxml import etree
+from header import user_agent
 
 
 # 执行具体功能
@@ -33,12 +35,13 @@ class VideoCrawl:
         while True:
             i = i + 1
             url = self.base_url + str(i) + ".html"
-            page_text = requests.get(url).text
-            if page_text == "":
-                break
+            page_text = requests.get(url, headers={'User-Agent': user_agent.UserAgent[random.randint(0, len(user_agent.UserAgent)) - 1]}).text
             # 解析内容,存入列表
             print("解析第%s页数据" % (i))
-            video_detail_dict_list.append(self.parse_content(page_text))
+            data = self.parse_content(page_text)
+            if data == "此页为空":
+                break
+            video_detail_dict_list.append(data)
 
         cursor = self.mysql_client.cursor()
         for video_detail_dict_list in video_detail_dict_list:
@@ -75,7 +78,9 @@ class VideoCrawl:
         video_detail_introduce_list = html.xpath("// *[ @ id = 'wrapper'] / div[3] / div / div / div[2] / div / div / div / div /div[2]/h3/a/@title")
         video_detail_img_url_list = html.xpath("// *[ @ id = 'wrapper'] / div[3] / div / div / div[2] / div / div / div / div /div[1]/a/img/@data-src")
         video_detail_url_list = html.xpath("// *[ @ id = 'wrapper'] / div[3] / div / div / div[2] / div / div / div / div /div[2]/h3/a/@href")
-
+        if video_detail_title_list == [] and video_detail_url_list == [] and video_detail_introduce_list == [] and video_detail_img_url_list == []:
+            # 此页为空，退出
+            return "此页为空"
         for index in range(len(video_detail_title_list)):
             # 处理信息
             video_title = video_detail_title_list[index]
