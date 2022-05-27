@@ -40,6 +40,15 @@ class VideoCrawl:
     def get_uuid(self):
         return uuid.uuid1()
 
+    def get_html(self, url):
+        i = 0
+        while i < 5:
+            try:
+                page_text = requests.get(url=url, headers={'User-Agent': user_agent.UserAgent[random.randint(0, len(user_agent.UserAgent)) - 1]},timeout=5).text
+                return page_text
+            except requests.exceptions.RequestException:
+                i += 1
+
     def video_crawl(self):
         # 网址: self.base_url + 1.html
         video_detail_dict_list = []
@@ -47,10 +56,9 @@ class VideoCrawl:
         while True:
             i = i + 1
             url = self.base_url + str(i) + ".html"
-            # headers={'User-Agent': user_agent.UserAgent[random.randint(0, len(user_agent.UserAgent)) - 1]}
-            page_text = requests.get(url, headers={'User-Agent': user_agent.UserAgent[random.randint(0, len(user_agent.UserAgent)) - 1]}).text
+            page_text = self.get_html(url)
             # 解析内容,存入列表
-            print("解析第%s页数据" % (i))
+            print("解析第%s页数据" % i)
             data = self.parse_content(page_text)
             if data == "此页为空":
                 break
@@ -61,7 +69,7 @@ class VideoCrawl:
             for video_detail_dict in video_detail_dict_list:
                 # 判断，如果数据存在，不写入
                 if video_detail_dict.get("video_detail_url") in self.exist_data_dict:
-                    print("数据%s已存在" % (video_detail_dict))
+                    print("数据%s已存在" % video_detail_dict)
                     continue
                 try:
                     cursor.execute(self.sql, (
